@@ -1,0 +1,54 @@
+name: iOS device (unsigned IPA)
+
+# Manual only. Builds the iPad Standalone for a physical device without code
+# signing, then zips it as an .ipa to be re-signed and installed with
+# Sideloadly (free Apple ID, 7-day expiry).
+on:
+  workflow_dispatch:
+
+jobs:
+  ios-device:
+    runs-on: macos-26
+    env:
+      T3K_PUBLISHABLE_KEY: ${{ secrets.T3K_PUBLISHABLE_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Read version
+        run: echo "T3K_VERSION=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_ENV"
+
+      - name: Cache CPM dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            libs/juce
+            libs/googletest
+            libs/clap-juce-extensions
+          key: cpm-deps-ios-device-${{ hashFiles('CMakeLists.txt', 'plugin/CMakeLists.txt') }}
+
+      - name: Configure CMake (iOS, no signing)
+        run: cmake --preset ios-simulator -B build-ios-device
+
+      - name: Build Standalone for iphoneos (no signing)
+        run: |
+          cmake --build build-ios-device --config Release \
+            --target TONE3000_Standalone --parallel -- \
+            -sdk iphoneos CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+
+      - name: Package IPA
+        run: |
+          set -euo pipefail
+          APP="build-ios-device/plugin/TONE3000_artefacts/Release/Standalone/TONE3000.app"
+          test -d "$APP"
+          mkdir Payload
+          cp -R "$APP" Payload/
+          zip -qry TONE3000-ios-device.ipa Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TONE3000-ios-device-ipa
+          path: TONE3000-ios-device.ipa
+          if-no-files-found: error
