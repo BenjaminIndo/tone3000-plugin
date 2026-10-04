@@ -23,6 +23,7 @@ public:
   ~RecorderView() override;
 
   std::function<void()> onClose;
+  std::function<void()> onOpenTracks;  // switch to the multitrack screen
 
   void paint(juce::Graphics& g) override;
   void resized() override;
@@ -48,7 +49,7 @@ private:
   Services& services_;
   IconButton close_{Icon::X, kCloseBox, kCloseGlyph};
   juce::Label title_, status_, listTitle_, time_, folder_, shareTitle_;
-  juce::TextButton shareClean_, shareAmp_, shareExport_;
+  juce::TextButton shareClean_, shareAmp_, shareExport_, tracks_;
   juce::TextButton record_, play_, loop_, export_, delete_;
   juce::ToggleButton recordAmp_, mp3_;
   juce::ListBox list_;

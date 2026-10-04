@@ -31,6 +31,7 @@
 #include "TunerDetector.h"
 #include "TakeRecorder.h"
 #include "Pedals.h"
+#include "Multitrack.h"
 
 class TONE3000Processor;
 
@@ -484,6 +485,8 @@ public:
 
   // Take recorder / reamp (see TakeRecorder.h). Message thread only.
   t3k::TakeRecorder& getTakeRecorder() { return takeRecorder; }
+  // Multitrack overdub / mixdown (see Multitrack.h). Message thread only.
+  t3k::Multitrack& getMultitrack() { return multitrack; }
 
   // Auto balance: one-shot chain energy match.
   // startAutoBalance() arms a "listening" measurement: the audio thread
@@ -1282,6 +1285,7 @@ private:
 
   // Records the clean input, plays takes back through the rig, bounces to WAV.
   t3k::TakeRecorder takeRecorder;
+  t3k::Multitrack multitrack{takeRecorder};
   // The real processing; processBlock wraps it so a take export can run the
   // rig several times per device callback (see TakeRecorder::fastExportActive).
   void processBlockInternal(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi);

@@ -330,6 +330,7 @@ void PluginRoot::setTunerShown(bool shown) {
   if (shown) {
     setRecorderShown(false);
     setPedalsShown(false);
+    setMultitrackShown(false);
     tuner_ = std::make_unique<TunerView>(services_);
     tuner_->onClose = [this] { setTunerShown(false); };
     addAndMakeVisible(*tuner_);
@@ -347,8 +348,17 @@ void PluginRoot::setRecorderShown(bool shown) {
   if (shown) {
     setTunerShown(false);
     setPedalsShown(false);
+    setMultitrackShown(false);
     recorder_ = std::make_unique<RecorderView>(services_);
     recorder_->onClose = [this] { setRecorderShown(false); };
+    // Deferred: switching destroys the recordings screen, whose button is
+    // still running this callback.
+    recorder_->onOpenTracks = [this] {
+      juce::Component::SafePointer<PluginRoot> self(this);
+      juce::MessageManager::callAsync([self] {
+        if (self != nullptr) self->setMultitrackShown(true);
+      });
+    };
     addAndMakeVisible(*recorder_);
     overlay_.toFront(false);  // popovers and the toast stay above the takeover
   } else {
@@ -364,6 +374,7 @@ void PluginRoot::setPedalsShown(bool shown) {
   if (shown) {
     setTunerShown(false);
     setRecorderShown(false);
+    setMultitrackShown(false);
     pedals_ = std::make_unique<PedalsView>(services_);
     pedals_->onClose = [this] { setPedalsShown(false); };
     addAndMakeVisible(*pedals_);
@@ -373,6 +384,29 @@ void PluginRoot::setPedalsShown(bool shown) {
   }
   syncTakeovers();
   header_.setPedalsShown(shown);
+  resized();
+}
+
+void PluginRoot::setMultitrackShown(bool shown) {
+  if (shown == multitrackShown()) return;
+  if (shown) {
+    setTunerShown(false);
+    setRecorderShown(false);
+    setPedalsShown(false);
+    multitrack_ = std::make_unique<MultitrackView>(services_);
+    multitrack_->onClose = [this] { setMultitrackShown(false); };
+    multitrack_->onBack = [this] {
+      juce::Component::SafePointer<PluginRoot> self(this);
+      juce::MessageManager::callAsync([self] {
+        if (self != nullptr) self->setRecorderShown(true);
+      });
+    };
+    addAndMakeVisible(*multitrack_);
+    overlay_.toFront(false);  // popovers and the toast stay above the takeover
+  } else {
+    multitrack_.reset();
+  }
+  syncTakeovers();
   resized();
 }
 
@@ -403,7 +437,7 @@ void PluginRoot::setBrowserShown(bool shown) {
 // What a takeover covers is hidden, not left painting underneath: the meters
 // tick at 30 Hz and would otherwise repaint for nothing.
 void PluginRoot::syncTakeovers() {
-  const bool tuner = tunerShown() || recorderShown() || pedalsShown(), browser = browserShown(), signIn = signInShown();
+  const bool tuner = tunerShown() || recorderShown() || pedalsShown() || multitrackShown(), browser = browserShown(), signIn = signInShown();
   const bool column = browser || signIn;  // something covers the whole column
   main_.setVisible(!tuner && !column);
   faceplate_.setVisible(tuner || !column);
@@ -415,6 +449,7 @@ void PluginRoot::closeTunerThen(const std::function<void()>& fn) {
   setTunerShown(false);
   setRecorderShown(false);
   setPedalsShown(false);
+  setMultitrackShown(false);
   if (fn) fn();
 }
 
@@ -422,6 +457,7 @@ void PluginRoot::showChainThen(const std::function<void()>& fn) {
   setTunerShown(false);
   setRecorderShown(false);
   setPedalsShown(false);
+  setMultitrackShown(false);
   if (browserShown()) {
     services_.loadFlow.clearPendingTargets();
     setBrowserShown(false);
@@ -484,6 +520,7 @@ void PluginRoot::resized() {
   if (tuner_) tuner_->setBounds(column);
   if (recorder_) recorder_->setBounds(column);
   if (pedals_) pedals_->setBounds(column);
+  if (multitrack_) multitrack_->setBounds(column);
 
   // The toast floats above the faceplate, measured from the overlay's bottom.
   const int belowColumn = getHeight() - (slotH + design::kHeight + hintH);

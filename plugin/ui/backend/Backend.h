@@ -126,6 +126,9 @@ public:
   // mock) ignore it.
   virtual juce::var getRecorderState() { return {}; }
   virtual juce::var recorderCommand(const juce::String& /*command*/, const juce::var& /*arg*/) { return {}; }
+  // Multitrack (see Multitrack::getState / handleCommand).
+  virtual juce::var getMultitrackState() { return {}; }
+  virtual juce::var multitrackCommand(const juce::String& /*command*/, const juce::var& /*arg*/) { return {}; }
   virtual void startAutoBalance() = 0;
   virtual void cancelAutoBalance() = 0;
   virtual juce::var pollAutoBalance() = 0;

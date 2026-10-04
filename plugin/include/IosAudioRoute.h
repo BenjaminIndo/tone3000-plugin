@@ -48,6 +48,11 @@ bool isBuiltInMicToSpeaker();
     survives a reopen. */
 void configureSession();
 
+/** Estimated input-to-output round trip in milliseconds: the session's input
+    and output latencies plus one IO buffer each way. Used to line up a track
+    recorded over a playing backing track. */
+double roundTripLatencyMs();
+
 #else
 
 inline bool isBluetoothRoute() {
@@ -57,6 +62,9 @@ inline bool isBuiltInMicToSpeaker() {
   return false;
 }
 inline void configureSession() {}
+inline double roundTripLatencyMs() {
+  return 0.0;
+}
 
 #endif
 

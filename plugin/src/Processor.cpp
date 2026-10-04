@@ -885,6 +885,7 @@ void TONE3000Processor::prepareToPlay(double sampleRate, int samplesPerBlock) {
 
   tuner.prepare(sampleRate);
   takeRecorder.prepare(sampleRate);
+  multitrack.prepare(sampleRate);
   fastExportScratch.setSize(2, juce::jmax(1, samplesPerBlock), false, true, false);
 
   // CPU readout: proportion of the callback budget spent in processBlock.
@@ -2185,6 +2186,9 @@ void TONE3000Processor::processBlockInternal(juce::AudioBuffer<float>& buffer, j
 
   // Final output, for the amp take / bounce.
   takeRecorder.processOutput(buffer);
+
+  // Backing tracks, after the recorder tap so they never land in a new take.
+  multitrack.processOutputMix(buffer);
 }
 
 // ##################

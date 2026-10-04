@@ -45,6 +45,12 @@ RecorderView::RecorderView(Services& services) : services_(services) {
   styleLabel(title_, 20.0f, true, theme::kWhite);
   addAndMakeVisible(title_);
 
+  styleButton(tracks_, "Tracks >");
+  tracks_.onClick = [this] {
+    if (onOpenTracks) onOpenTracks();
+  };
+  addAndMakeVisible(tracks_);
+
   status_.setText("Ready", juce::dontSendNotification);
   styleLabel(status_, 16.0f, false, theme::kWhite);
   status_.setJustificationType(juce::Justification::centredLeft);
@@ -326,7 +332,8 @@ void RecorderView::resized() {
   close_.setBounds(area.getRight() - kCloseRight - kCloseBox, area.getY() + kCloseTop, kCloseBox, kCloseBox);
 
   auto inner = area.reduced(kPad, 0);
-  title_.setBounds(inner.getX(), area.getY() + 14, 300, 32);
+  title_.setBounds(inner.getX(), area.getY() + 14, 170, 32);
+  tracks_.setBounds(inner.getX() + 190, area.getY() + 14, 130, 32);
   inner.removeFromTop(54);
 
   auto left = inner.removeFromLeft(kLeftW);

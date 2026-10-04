@@ -97,6 +97,8 @@ public:
   juce::var getTunerReading() override;
   juce::var getRecorderState() override;
   juce::var recorderCommand(const juce::String& command, const juce::var& arg) override;
+  juce::var getMultitrackState() override;
+  juce::var multitrackCommand(const juce::String& command, const juce::var& arg) override;
   void startAutoBalance() override;
   void cancelAutoBalance() override;
   juce::var pollAutoBalance() override;

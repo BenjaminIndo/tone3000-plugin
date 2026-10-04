@@ -229,6 +229,10 @@ juce::var ProcessorBackend::getRecorderState() { return processor_.getTakeRecord
 juce::var ProcessorBackend::recorderCommand(const juce::String& command, const juce::var& arg) {
   return processor_.getTakeRecorder().handleCommand(command, arg);
 }
+juce::var ProcessorBackend::getMultitrackState() { return processor_.getMultitrack().getState(); }
+juce::var ProcessorBackend::multitrackCommand(const juce::String& command, const juce::var& arg) {
+  return processor_.getMultitrack().handleCommand(command, arg);
+}
 void ProcessorBackend::startAutoBalance() { processor_.startAutoBalance(); }
 void ProcessorBackend::cancelAutoBalance() { processor_.cancelAutoBalance(); }
 juce::var ProcessorBackend::pollAutoBalance() { return processor_.pollAutoBalance(); }

@@ -146,6 +146,9 @@ public:
     return exporting.load() && exportStarted.load() && !exportDone.load();
   }
 
+  // Name (without extension) of the take recorded last, "" if none.
+  juce::String lastRecordedName() const { return lastRecorded; }
+
   // -------------------------------------------------------------- commands
 
   // One entry point for the UI. Returns the state after the command.
@@ -602,7 +605,7 @@ private:
     fm.registerBasicFormats();
     for (const auto& f : files) {
       const auto name = f.getFileNameWithoutExtension();
-      if (name.endsWith(" (amp)") || name.contains(" (export ")) continue;
+      if (name.endsWith(" (amp)") || name.contains(" (export ") || name.startsWith("Mix ")) continue;
       TakeInfo info;
       info.id = name;
       info.hasAmp = dir.getChildFile(name + " (amp).wav").existsAsFile();

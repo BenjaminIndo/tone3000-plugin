@@ -85,6 +85,11 @@ void configureSession() {
                         : juce::String ("no error object")));
 }
 
+double roundTripLatencyMs() {
+  AVAudioSession* session = [AVAudioSession sharedInstance];
+  return (session.inputLatency + session.outputLatency + 2.0 * session.IOBufferDuration) * 1000.0;
+}
+
 }  // namespace IosAudioRoute
 
 #endif
