@@ -47,3 +47,14 @@ La pantalla SHALL mostrar si graba, reproduce o exporta, el tiempo transcurrido 
 #### Scenario: Error al guardar
 - **WHEN** no se puede crear el archivo
 - **THEN** se muestra un mensaje y la grabación no queda a medias en silencio
+
+### Requirement: Compartir un WAV
+La app SHALL permitir compartir la toma limpia, la toma con amp o la última exportación como WAV mediante la hoja de compartir del sistema, y SHALL abrirla automáticamente al terminar una exportación.
+
+#### Scenario: Exportar y compartir
+- **WHEN** termina una exportación con amp
+- **THEN** se abre la hoja de compartir con el WAV nuevo
+
+#### Scenario: Compartir una toma existente
+- **WHEN** el usuario elige una toma y pulsa "Clean" o "Amped"
+- **THEN** se abre la hoja de compartir con ese archivo

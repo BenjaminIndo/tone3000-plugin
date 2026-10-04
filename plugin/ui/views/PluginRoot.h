@@ -37,6 +37,7 @@
 #include "Faceplate.h"
 #include "HintBar.h"
 #include "MainScreen.h"
+#include "PedalsView.h"
 #include "PluginHeader.h"
 #include "RecorderView.h"
 #include "SignInScreen.h"
@@ -82,6 +83,9 @@ public:
   // The recordings takeover shares the tuner's slot (the two exclude each other).
   void setRecorderShown(bool shown);
   bool recorderShown() const { return recorder_ != nullptr; }
+  // The pedalboard takeover also shares that slot.
+  void setPedalsShown(bool shown);
+  bool pedalsShown() const { return pedals_ != nullptr; }
   // The tone browser takeover covers everything under the header (meters,
   // chain and faceplate); mounted only while open. A tuner opened over it
   // hides it until the tuner closes.
@@ -144,6 +148,7 @@ private:
   std::unique_ptr<SignInScreen> signIn_;
   std::unique_ptr<TunerView> tuner_;
   std::unique_ptr<RecorderView> recorder_;
+  std::unique_ptr<PedalsView> pedals_;
   std::unique_ptr<SettingsScreen> settings_;
   Faceplate faceplate_;
   AppBanner banner_;

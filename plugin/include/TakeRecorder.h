@@ -171,6 +171,8 @@ public:
     o->setProperty("error", error);
     o->setProperty("message", message);
     o->setProperty("folder", directory().getFullPathName());
+    o->setProperty("lastExport", lastExport);
+    o->setProperty("exportSerial", exportSerial);
     juce::Array<juce::var> list;
     for (const auto& info : takes) {
       auto* e = new juce::DynamicObject();
@@ -517,6 +519,10 @@ private:
     wetWriter.close();
     scan();
     message = cancelled ? "Export cancelled: " + exportName : "Exported: " + exportName;
+    if (!cancelled) {
+      lastExport = exportName;
+      ++exportSerial;
+    }
   }
 
   void scan() {
@@ -560,6 +566,8 @@ private:
   std::vector<std::unique_ptr<Take>> owned;
   std::vector<TakeInfo> takes;
   juce::String currentId, lastRecorded, exportName, error, message;
+  juce::String lastExport;
+  int exportSerial = 0;
   bool recordAmp = true;
   bool scanned = false;
   bool timerStarted = false;

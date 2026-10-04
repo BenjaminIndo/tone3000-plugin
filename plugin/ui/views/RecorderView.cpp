@@ -86,6 +86,28 @@ RecorderView::RecorderView(Services& services) : services_(services) {
   };
   addAndMakeVisible(delete_);
 
+  shareTitle_.setText("SHARE AS WAV", juce::dontSendNotification);
+  styleLabel(shareTitle_, 12.0f, true, theme::kGray);
+  addAndMakeVisible(shareTitle_);
+
+  styleButton(shareClean_, "Clean");
+  shareClean_.onClick = [this] {
+    if (selectedId_.isNotEmpty()) shareFile(juce::File(folderPath_).getChildFile(selectedId_ + ".wav"));
+  };
+  addAndMakeVisible(shareClean_);
+
+  styleButton(shareAmp_, "Amped");
+  shareAmp_.onClick = [this] {
+    if (selectedId_.isNotEmpty()) shareFile(juce::File(folderPath_).getChildFile(selectedId_ + " (amp).wav"));
+  };
+  addAndMakeVisible(shareAmp_);
+
+  styleButton(shareExport_, "Export");
+  shareExport_.onClick = [this] {
+    if (lastExport_.isNotEmpty()) shareFile(juce::File(folderPath_).getChildFile(lastExport_ + ".wav"));
+  };
+  addAndMakeVisible(shareExport_);
+
   recordAmp_.setButtonText("Also record the amped sound");
   recordAmp_.setToggleState(true, juce::dontSendNotification);
   recordAmp_.setColour(juce::ToggleButton::textColourId, theme::kWhite);
@@ -125,6 +147,17 @@ RecorderView::~RecorderView() {
 
 void RecorderView::command(const juce::String& cmd, const juce::var& arg) {
   apply(services_.backend.recorderCommand(cmd, arg));
+}
+
+void RecorderView::shareFile(const juce::File& file) {
+  if (!file.existsAsFile()) return;
+#if JUCE_IOS
+  juce::Array<juce::URL> urls;
+  urls.add(juce::URL(file));
+  juce::ContentSharer::getInstance()->shareFiles(urls, [](bool, const juce::String&) {});
+#else
+  file.revealToUser();
+#endif
 }
 
 void RecorderView::timerCallback() { apply(services_.backend.getRecorderState()); }
@@ -186,6 +219,17 @@ void RecorderView::apply(const juce::var& state) {
   time_.setText(mmss(position) + " / " + mmss(length), juce::dontSendNotification);
 
   const juce::String folder = state.getProperty("folder", {}).toString();
+  folderPath_ = folder;
+  lastExport_ = state.getProperty("lastExport", {}).toString();
+  // A finished export opens the share sheet straight away (the first poll
+  // after opening the screen only sets the baseline).
+  const int serial = static_cast<int>(state.getProperty("exportSerial", 0));
+  if (lastSerial_ < 0) {
+    lastSerial_ = serial;
+  } else if (serial != lastSerial_) {
+    lastSerial_ = serial;
+    if (lastExport_.isNotEmpty()) shareFile(juce::File(folderPath_).getChildFile(lastExport_ + ".wav"));
+  }
   if (folder.isNotEmpty() && folder_.getText().isEmpty())
     folder_.setText("Files app > TONE3000 > Recordings   (" + folder + ")", juce::dontSendNotification);
 
@@ -208,6 +252,13 @@ void RecorderView::apply(const juce::var& state) {
     list_.updateContent();
     list_.repaint();
   }
+  selectedHasAmp_ = false;
+  for (const auto& r : rows_)
+    if (r.id == selected) selectedHasAmp_ = r.hasAmp;
+  shareClean_.setEnabled(!recording && selected.isNotEmpty());
+  shareAmp_.setEnabled(!recording && selectedHasAmp_);
+  shareExport_.setEnabled(!recording && !exporting && lastExport_.isNotEmpty());
+
   if (selected != selectedId_) {
     selectedId_ = selected;
     int index = -1;
@@ -270,9 +321,19 @@ void RecorderView::resized() {
   left.removeFromTop(kGap);
   export_.setBounds(left.removeFromTop(48));
   left.removeFromTop(kGap);
-  delete_.setBounds(left.removeFromTop(40));
+  delete_.setBounds(left.removeFromTop(36));
   left.removeFromTop(kGap);
-  recordAmp_.setBounds(left.removeFromTop(32));
+  recordAmp_.setBounds(left.removeFromTop(28));
+  left.removeFromTop(kGap);
+  shareTitle_.setBounds(left.removeFromTop(16));
+  left.removeFromTop(4);
+  auto shareRow = left.removeFromTop(40);
+  const int shareW = (shareRow.getWidth() - 2 * kGap) / 3;
+  shareClean_.setBounds(shareRow.removeFromLeft(shareW));
+  shareRow.removeFromLeft(kGap);
+  shareAmp_.setBounds(shareRow.removeFromLeft(shareW));
+  shareRow.removeFromLeft(kGap);
+  shareExport_.setBounds(shareRow);
 
   status_.setBounds(right.removeFromTop(32));
   right.removeFromTop(6);

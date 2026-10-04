@@ -161,6 +161,22 @@ void TONE3000Processor::resolveParamRefs() {
   paramRefs.pitchStep = get("pitchStep");
   paramRefs.pitchTonality = get("pitchTonality");
   paramRefs.pitchWindow = get("pitchWindow");
+  paramRefs.compEnabled = get("compEnabled");
+  paramRefs.compThreshold = get("compThreshold");
+  paramRefs.compRatio = get("compRatio");
+  paramRefs.compAttack = get("compAttack");
+  paramRefs.compRelease = get("compRelease");
+  paramRefs.compMakeup = get("compMakeup");
+  paramRefs.compMix = get("compMix");
+  paramRefs.delayEnabled = get("delayEnabled");
+  paramRefs.delayTime = get("delayTime");
+  paramRefs.delayFeedback = get("delayFeedback");
+  paramRefs.delayTone = get("delayTone");
+  paramRefs.delayMix = get("delayMix");
+  paramRefs.reverbEnabled = get("reverbEnabled");
+  paramRefs.reverbSize = get("reverbSize");
+  paramRefs.reverbDamp = get("reverbDamp");
+  paramRefs.reverbMix = get("reverbMix");
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout TONE3000Processor::createParameterLayout() {
@@ -363,6 +379,48 @@ juce::AudioProcessorValueTreeState::ParameterLayout TONE3000Processor::createPar
       juce::ParameterID{"pitchWindow", 43}, "pitchWindow", windows,
       static_cast<int>(PitchShift::kDefaultWindow),
       juce::AudioParameterChoiceAttributes().withAutomatable(false)));
+
+  // Pedalboard (see Pedals.h). Everything off by default so a fresh rig stays
+  // transparent. Real units (dB, ms, Hz) like the gate deck.
+  layout.add(std::make_unique<juce::AudioParameterBool>(
+      juce::ParameterID{"compEnabled", 44}, "compEnabled", false));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      juce::ParameterID{"compThreshold", 45}, "compThreshold", -60.0f, 0.0f, -20.0f));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      juce::ParameterID{"compRatio", 46}, "compRatio",
+      juce::NormalisableRange<float>(1.0f, 20.0f, 0.1f, 0.5f), 4.0f));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      juce::ParameterID{"compAttack", 47}, "compAttack",
+      juce::NormalisableRange<float>(1.0f, 100.0f, 0.1f, 0.5f), 10.0f));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      juce::ParameterID{"compRelease", 48}, "compRelease",
+      juce::NormalisableRange<float>(20.0f, 1000.0f, 1.0f, 0.5f), 200.0f));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      juce::ParameterID{"compMakeup", 49}, "compMakeup", 0.0f, 24.0f, 0.0f));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      juce::ParameterID{"compMix", 50}, "compMix", 0.0f, 1.0f, 1.0f));
+
+  layout.add(std::make_unique<juce::AudioParameterBool>(
+      juce::ParameterID{"delayEnabled", 51}, "delayEnabled", false));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      juce::ParameterID{"delayTime", 52}, "delayTime",
+      juce::NormalisableRange<float>(20.0f, 1000.0f, 1.0f, 0.6f), 380.0f));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      juce::ParameterID{"delayFeedback", 53}, "delayFeedback", 0.0f, 0.95f, 0.35f));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      juce::ParameterID{"delayTone", 54}, "delayTone",
+      juce::NormalisableRange<float>(1000.0f, 12000.0f, 1.0f, 0.5f), 5000.0f));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      juce::ParameterID{"delayMix", 55}, "delayMix", 0.0f, 1.0f, 0.3f));
+
+  layout.add(std::make_unique<juce::AudioParameterBool>(
+      juce::ParameterID{"reverbEnabled", 56}, "reverbEnabled", false));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      juce::ParameterID{"reverbSize", 57}, "reverbSize", 0.0f, 1.0f, 0.5f));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      juce::ParameterID{"reverbDamp", 58}, "reverbDamp", 0.0f, 1.0f, 0.5f));
+  layout.add(std::make_unique<juce::AudioParameterFloat>(
+      juce::ParameterID{"reverbMix", 59}, "reverbMix", 0.0f, 1.0f, 0.25f));
 
   return layout;
 }
@@ -878,6 +936,9 @@ void TONE3000Processor::prepareToPlay(double sampleRate, int samplesPerBlock) {
   // The oversampler is minimum-phase (zero reported latency), so the boundary
   // and a powered pitch shifter are the only latency sources at any factor.
   pitchShift.prepare(sampleRate, juce::jmax(1, samplesPerBlock));
+  pedalComp.prepare(sampleRate);
+  pedalDelay.prepare(sampleRate);
+  pedalReverb.prepare(sampleRate);
   updateLatency();
   DBG("Chain boundary " << (boundaryNeeded ? "engaged" : "bypassed")
       << " (latency: " << chainBoundaryLatency << " samples)");
@@ -1866,6 +1927,20 @@ void TONE3000Processor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mid
     pitchShift.process(buffer);
   }
 
+  // Compressor pedal (Pedals.h): before the amp, after gate and pitch. Idle
+  // cost when off: two comparisons.
+  {
+    t3k::PedalCompressor::Params cp;
+    cp.enabled = paramRefs.compEnabled->load() > 0.5f;
+    cp.thresholdDb = paramRefs.compThreshold->load();
+    cp.ratio = paramRefs.compRatio->load();
+    cp.attackMs = paramRefs.compAttack->load();
+    cp.releaseMs = paramRefs.compRelease->load();
+    cp.makeupDb = paramRefs.compMakeup->load();
+    cp.mix = paramRefs.compMix->load();
+    pedalComp.process(buffer, cp);
+  }
+
   // #########################
   // Auto-align probe injection (see AutoOffset.h): while a measurement is
   // running, both chains eat the pre-generated sweep instead of the
@@ -2029,6 +2104,25 @@ void TONE3000Processor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mid
   // EQ section (global 3-band tone stack), post-chain.
   // ##########
   processToneStack(buffer);
+
+  // Delay and reverb pedals (Pedals.h): after the amp chain and tone stack,
+  // before the output level, so the level knob and the take recorder see them.
+  {
+    t3k::PedalDelay::Params dp;
+    dp.enabled = paramRefs.delayEnabled->load() > 0.5f;
+    dp.timeMs = paramRefs.delayTime->load();
+    dp.feedback = paramRefs.delayFeedback->load();
+    dp.toneHz = paramRefs.delayTone->load();
+    dp.mix = paramRefs.delayMix->load();
+    pedalDelay.process(buffer, dp);
+
+    t3k::PedalReverb::Params rp;
+    rp.enabled = paramRefs.reverbEnabled->load() > 0.5f;
+    rp.size = paramRefs.reverbSize->load();
+    rp.damp = paramRefs.reverbDamp->load();
+    rp.mix = paramRefs.reverbMix->load();
+    pedalReverb.process(buffer, rp);
+  }
 
   // ##########
   // Auto-align probe mute: fades the output before the probe starts, holds

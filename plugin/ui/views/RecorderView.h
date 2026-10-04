@@ -37,6 +37,8 @@ private:
   void timerCallback() override;
   void apply(const juce::var& state);
   void command(const juce::String& cmd, const juce::var& arg = {});
+  // Opens the iOS share sheet for a WAV (reveals it in the file browser on desktop).
+  void shareFile(const juce::File& file);
 
   // ListBoxModel
   int getNumRows() override;
@@ -45,14 +47,17 @@ private:
 
   Services& services_;
   IconButton close_{Icon::X, kCloseBox, kCloseGlyph};
-  juce::Label title_, status_, listTitle_, time_, folder_;
+  juce::Label title_, status_, listTitle_, time_, folder_, shareTitle_;
+  juce::TextButton shareClean_, shareAmp_, shareExport_;
   juce::TextButton record_, play_, loop_, export_, delete_;
   juce::ToggleButton recordAmp_;
   juce::ListBox list_;
   juce::Slider position_;
 
   std::vector<Row> rows_;
-  juce::String selectedId_;
+  juce::String selectedId_, folderPath_, lastExport_;
+  bool selectedHasAmp_ = false;
+  int lastSerial_ = -1;
   bool updating_ = false;
 };
 

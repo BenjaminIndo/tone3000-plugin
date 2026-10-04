@@ -18,6 +18,9 @@ constexpr int kLogoWidth = 160;
 // Record glyph (ring with a centre dot), authored white like the Lucide set.
 constexpr const char* kRecordIcon =
     R"svg(<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="#ffffff"/></svg>)svg";
+// Stomp-box glyph, authored white like the Lucide set.
+constexpr const char* kPedalIcon =
+    R"svg(<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"><rect x="5" y="2.5" width="14" height="19" rx="2.5"/><circle cx="12" cy="8" r="2"/><circle cx="12" cy="15.5" r="2.5"/></svg>)svg";
 constexpr int kLogoHeight = 24;  // 160 * 32 / 210, rounded like the browser
 }  // namespace
 
@@ -39,7 +42,8 @@ PluginHeader::PluginHeader(Services& services)
       logo_(std::make_unique<LogoLink>()),
       presetBar_(services),
       tuner_(custom_icons::kTuningFork, 28, 18),
-      rec_(kRecordIcon, 28, 18) {
+      rec_(kRecordIcon, 28, 18),
+      ped_(kPedalIcon, 28, 18) {
   addAndMakeVisible(*logo_);
   addAndMakeVisible(presetBar_);
 
@@ -60,6 +64,12 @@ PluginHeader::PluginHeader(Services& services)
     if (onToggleRecorder) onToggleRecorder(!recorderShown_);
   };
   addAndMakeVisible(rec_);
+
+  ped_.setHelpText("Pedals: compressor, delay and reverb");
+  ped_.onClick = [this] {
+    if (onTogglePedals) onTogglePedals(!pedalsShown_);
+  };
+  addAndMakeVisible(ped_);
 
   undo_.setHelpText(help::text(help::Key::undo));
   undo_.onClick = [this] {
@@ -119,6 +129,12 @@ void PluginHeader::setRecorderShown(bool shown) {
   rec_.setFillWhenActive(shown);
 }
 
+void PluginHeader::setPedalsShown(bool shown) {
+  pedalsShown_ = shown;
+  ped_.setActive(true);
+  ped_.setFillWhenActive(shown);
+}
+
 void PluginHeader::chainChanged(const ChainState& state) {
   undo_.setEnabled(state.canUndo);
   redo_.setEnabled(state.canRedo);
@@ -151,7 +167,8 @@ void PluginHeader::resized() {
   x = place(redo_, x) - kPairGap;
   x = place(undo_, x) - kGroupGap;
   x = place(tuner_, x) - kPairGap;
-  x = place(rec_, x) - kGroupGap;
+  x = place(rec_, x) - kPairGap;
+  x = place(ped_, x) - kGroupGap;
   x = place(stereo_, x) - kGroupGap;
   place(presetBar_, x);
 }

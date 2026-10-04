@@ -26,6 +26,7 @@ PluginRoot::PluginRoot(Services& services)
 
   header_.onToggleTuner = [this](bool show) { setTunerShown(show); };
   header_.onToggleRecorder = [this](bool show) { setRecorderShown(show); };
+  header_.onTogglePedals = [this](bool show) { setPedalsShown(show); };
   header_.onStereoToggle = [this](bool stereo) {
     closeTunerThen([&] { services_.chain.setStereoMode(stereo); });
   };
@@ -328,6 +329,7 @@ void PluginRoot::setTunerShown(bool shown) {
   if (shown == tunerShown()) return;
   if (shown) {
     setRecorderShown(false);
+    setPedalsShown(false);
     tuner_ = std::make_unique<TunerView>(services_);
     tuner_->onClose = [this] { setTunerShown(false); };
     addAndMakeVisible(*tuner_);
@@ -344,6 +346,7 @@ void PluginRoot::setRecorderShown(bool shown) {
   if (shown == recorderShown()) return;
   if (shown) {
     setTunerShown(false);
+    setPedalsShown(false);
     recorder_ = std::make_unique<RecorderView>(services_);
     recorder_->onClose = [this] { setRecorderShown(false); };
     addAndMakeVisible(*recorder_);
@@ -353,6 +356,23 @@ void PluginRoot::setRecorderShown(bool shown) {
   }
   syncTakeovers();
   header_.setRecorderShown(shown);
+  resized();
+}
+
+void PluginRoot::setPedalsShown(bool shown) {
+  if (shown == pedalsShown()) return;
+  if (shown) {
+    setTunerShown(false);
+    setRecorderShown(false);
+    pedals_ = std::make_unique<PedalsView>(services_);
+    pedals_->onClose = [this] { setPedalsShown(false); };
+    addAndMakeVisible(*pedals_);
+    overlay_.toFront(false);  // popovers and the toast stay above the takeover
+  } else {
+    pedals_.reset();
+  }
+  syncTakeovers();
+  header_.setPedalsShown(shown);
   resized();
 }
 
@@ -383,7 +403,7 @@ void PluginRoot::setBrowserShown(bool shown) {
 // What a takeover covers is hidden, not left painting underneath: the meters
 // tick at 30 Hz and would otherwise repaint for nothing.
 void PluginRoot::syncTakeovers() {
-  const bool tuner = tunerShown() || recorderShown(), browser = browserShown(), signIn = signInShown();
+  const bool tuner = tunerShown() || recorderShown() || pedalsShown(), browser = browserShown(), signIn = signInShown();
   const bool column = browser || signIn;  // something covers the whole column
   main_.setVisible(!tuner && !column);
   faceplate_.setVisible(tuner || !column);
@@ -394,12 +414,14 @@ void PluginRoot::syncTakeovers() {
 void PluginRoot::closeTunerThen(const std::function<void()>& fn) {
   setTunerShown(false);
   setRecorderShown(false);
+  setPedalsShown(false);
   if (fn) fn();
 }
 
 void PluginRoot::showChainThen(const std::function<void()>& fn) {
   setTunerShown(false);
   setRecorderShown(false);
+  setPedalsShown(false);
   if (browserShown()) {
     services_.loadFlow.clearPendingTargets();
     setBrowserShown(false);
@@ -461,6 +483,7 @@ void PluginRoot::resized() {
   main_.setBounds(column);
   if (tuner_) tuner_->setBounds(column);
   if (recorder_) recorder_->setBounds(column);
+  if (pedals_) pedals_->setBounds(column);
 
   // The toast floats above the faceplate, measured from the overlay's bottom.
   const int belowColumn = getHeight() - (slotH + design::kHeight + hintH);

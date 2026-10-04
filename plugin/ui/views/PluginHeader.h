@@ -23,9 +23,11 @@ public:
 
   void setTunerShown(bool shown);
   void setRecorderShown(bool shown);
+  void setPedalsShown(bool shown);
 
   std::function<void(bool show)> onToggleTuner;
   std::function<void(bool show)> onToggleRecorder;
+  std::function<void(bool show)> onTogglePedals;
   std::function<void(bool stereo)> onStereoToggle;
   std::function<void()> onUndo, onRedo, onOpenSettings, onLogin, onLogout;
 
@@ -47,11 +49,13 @@ private:
   StereoModeToggle stereo_;
   IconButton tuner_;
   IconButton rec_;
+  IconButton ped_;
   IconButton undo_{Icon::Undo2, 28};
   IconButton redo_{Icon::Redo2, 28};
   AccountMenu account_;
   bool tunerShown_ = false;
   bool recorderShown_ = false;
+  bool pedalsShown_ = false;
 };
 
 }  // namespace t3k::ui

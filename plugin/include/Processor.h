@@ -30,6 +30,7 @@
 #include "PresetManager.h"
 #include "TunerDetector.h"
 #include "TakeRecorder.h"
+#include "Pedals.h"
 
 class TONE3000Processor;
 
@@ -1116,6 +1117,22 @@ private:
     std::atomic<float>* pitchStep = nullptr;
     std::atomic<float>* pitchTonality = nullptr;
     std::atomic<float>* pitchWindow = nullptr;
+    std::atomic<float>* compEnabled = nullptr;
+    std::atomic<float>* compThreshold = nullptr;
+    std::atomic<float>* compRatio = nullptr;
+    std::atomic<float>* compAttack = nullptr;
+    std::atomic<float>* compRelease = nullptr;
+    std::atomic<float>* compMakeup = nullptr;
+    std::atomic<float>* compMix = nullptr;
+    std::atomic<float>* delayEnabled = nullptr;
+    std::atomic<float>* delayTime = nullptr;
+    std::atomic<float>* delayFeedback = nullptr;
+    std::atomic<float>* delayTone = nullptr;
+    std::atomic<float>* delayMix = nullptr;
+    std::atomic<float>* reverbEnabled = nullptr;
+    std::atomic<float>* reverbSize = nullptr;
+    std::atomic<float>* reverbDamp = nullptr;
+    std::atomic<float>* reverbMix = nullptr;
   } paramRefs;
   void resolveParamRefs();
 
@@ -1265,6 +1282,11 @@ private:
 
   // Records the clean input, plays takes back through the rig, bounces to WAV.
   t3k::TakeRecorder takeRecorder;
+
+  // Pedalboard: compressor before the chain, delay and reverb after it.
+  t3k::PedalCompressor pedalComp;
+  t3k::PedalDelay pedalDelay;
+  t3k::PedalReverb pedalReverb;
 
   // Auto balance measurement state.
   // Lock-free audio↔message thread handshake. The audio thread only touches
