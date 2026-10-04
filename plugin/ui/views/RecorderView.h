@@ -50,7 +50,7 @@ private:
   juce::Label title_, status_, listTitle_, time_, folder_, shareTitle_;
   juce::TextButton shareClean_, shareAmp_, shareExport_;
   juce::TextButton record_, play_, loop_, export_, delete_;
-  juce::ToggleButton recordAmp_;
+  juce::ToggleButton recordAmp_, mp3_;
   juce::ListBox list_;
   juce::Slider position_;
 

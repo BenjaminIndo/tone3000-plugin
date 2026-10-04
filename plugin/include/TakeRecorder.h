@@ -20,6 +20,8 @@
 #include <juce_core/juce_core.h>
 #include <juce_events/juce_events.h>
 
+#include "Mp3Encoder.h"
+
 #include <algorithm>
 #include <atomic>
 #include <cmath>
@@ -88,7 +90,11 @@ public:
         buffer.copyFrom(ch, 0, buffer, 0, 0, n);
       if (ended) {
         playing.store(false);
-        if (isExporting) tailLeft.store(tailSamples.load());
+        if (isExporting) {
+          tailLeft.store(tailSamples.load());
+          tailElapsed.store(0);
+          quietFrames.store(0);
+        }
       }
       return;
     }
@@ -113,6 +119,31 @@ public:
     if (n <= 0 || nch <= 0) return;
     const float* chans[2] = {buffer.getReadPointer(0), buffer.getReadPointer(nch > 1 ? 1 : 0)};
     wetWriter.push(chans, 2, n);
+
+    // Export tail: stop early once the rig has gone quiet.
+    if (exporting.load() && exportStarted.load() && !playing.load()) {
+      float peak = 0.0f;
+      for (int c = 0; c < 2; ++c)
+        for (int i = 0; i < n; ++i)
+          peak = std::max(peak, std::abs(chans[c][i]));
+      const juce::int64 elapsed = tailElapsed.fetch_add(n) + n;
+      juce::int64 quiet = 0;
+      if (peak < kQuietLinear)
+        quiet = quietFrames.fetch_add(n) + n;
+      else
+        quietFrames.store(0);
+      if (quiet >= static_cast<juce::int64>(sampleRate * kQuietHoldSeconds) &&
+          elapsed >= static_cast<juce::int64>(sampleRate * kMinTailSeconds)) {
+        captureWet.store(false);
+        exportDone.store(true);
+      }
+    }
+  }
+
+  // True while an export is rendering: the processor then runs the rig several
+  // times per device callback (faster than real time) and mutes the device.
+  bool fastExportActive() const noexcept {
+    return exporting.load() && exportStarted.load() && !exportDone.load();
   }
 
   // -------------------------------------------------------------- commands
@@ -149,6 +180,8 @@ public:
       deleteTake(arg.toString());
     } else if (cmd == "refresh") {
       scan();
+    } else if (cmd == "mp3") {
+      makeMp3(arg.toString());
     }
     return getState();
   }
@@ -172,6 +205,7 @@ public:
     o->setProperty("message", message);
     o->setProperty("folder", directory().getFullPathName());
     o->setProperty("lastExport", lastExport);
+    o->setProperty("mp3Path", lastMp3);
     o->setProperty("exportSerial", exportSerial);
     juce::Array<juce::var> list;
     for (const auto& info : takes) {
@@ -186,7 +220,12 @@ public:
   }
 
 private:
-  static constexpr double kTailSeconds = 2.0;
+  // Export tail: ends as soon as the output has been quiet for a moment (after a
+  // minimum), or at the maximum, whichever comes first.
+  static constexpr double kTailSeconds = 3.0;
+  static constexpr double kMinTailSeconds = 0.3;
+  static constexpr double kQuietHoldSeconds = 0.25;
+  static constexpr float kQuietLinear = 0.001f;  // -60 dBFS
   static constexpr double kMaxTakeSeconds = 600.0;
 
   struct Take {
@@ -482,7 +521,30 @@ private:
     }
     directory().getChildFile(id + ".wav").deleteFile();
     directory().getChildFile(id + " (amp).wav").deleteFile();
+    directory().getChildFile(id + ".mp3").deleteFile();
+    directory().getChildFile(id + " (amp).mp3").deleteFile();
     scan();
+  }
+
+  // Encodes a WAV from the recordings folder to an MP3 next to it (reused when
+  // already up to date). The result path is reported as "mp3Path" in the state.
+  void makeMp3(const juce::String& wavPath) {
+    lastMp3 = {};
+    const juce::File wav(wavPath);
+    if (!wav.existsAsFile()) {
+      error = "File not found.";
+      return;
+    }
+    const juce::File mp3 = wav.withFileExtension("mp3");
+    if (!mp3.existsAsFile() || mp3.getLastModificationTime() < wav.getLastModificationTime()) {
+      const juce::String err = encodeWavToMp3(wav, mp3);
+      if (err.isNotEmpty()) {
+        error = err;
+        return;
+      }
+    }
+    lastMp3 = mp3.getFullPathName();
+    message = "MP3 ready: " + mp3.getFileName();
   }
 
   void startExport() {
@@ -502,6 +564,8 @@ private:
     loop.store(false);
     playPos.store(0);
     exportDone.store(false);
+    tailElapsed.store(0);
+    quietFrames.store(0);
     exportStarted.store(true);
     tailLeft.store(tailSamples.load());
     exporting.store(true);
@@ -559,14 +623,14 @@ private:
 
   std::atomic<bool> recording{false}, playing{false}, loop{false};
   std::atomic<bool> exporting{false}, exportStarted{false}, exportDone{false}, captureWet{false};
-  std::atomic<juce::int64> playPos{0}, tailLeft{0}, recordedFrames{0};
+  std::atomic<juce::int64> playPos{0}, tailLeft{0}, recordedFrames{0}, tailElapsed{0}, quietFrames{0};
   std::atomic<const Take*> current{nullptr};
 
   WavWriter dryWriter, wetWriter;
   std::vector<std::unique_ptr<Take>> owned;
   std::vector<TakeInfo> takes;
   juce::String currentId, lastRecorded, exportName, error, message;
-  juce::String lastExport;
+  juce::String lastExport, lastMp3;
   int exportSerial = 0;
   bool recordAmp = true;
   bool scanned = false;

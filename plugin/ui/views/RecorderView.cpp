@@ -86,7 +86,7 @@ RecorderView::RecorderView(Services& services) : services_(services) {
   };
   addAndMakeVisible(delete_);
 
-  shareTitle_.setText("SHARE AS WAV", juce::dontSendNotification);
+  shareTitle_.setText("SHARE AS WAV", juce::dontSendNotification);  // follows the MP3 toggle
   styleLabel(shareTitle_, 12.0f, true, theme::kGray);
   addAndMakeVisible(shareTitle_);
 
@@ -108,7 +108,16 @@ RecorderView::RecorderView(Services& services) : services_(services) {
   };
   addAndMakeVisible(shareExport_);
 
-  recordAmp_.setButtonText("Also record the amped sound");
+  mp3_.setButtonText("Share as MP3");
+  mp3_.setColour(juce::ToggleButton::textColourId, theme::kWhite);
+  mp3_.setColour(juce::ToggleButton::tickColourId, theme::kWhite);
+  mp3_.setMouseClickGrabsKeyboardFocus(false);
+  mp3_.onClick = [this] {
+    shareTitle_.setText(mp3_.getToggleState() ? "SHARE AS MP3" : "SHARE AS WAV", juce::dontSendNotification);
+  };
+  addAndMakeVisible(mp3_);
+
+  recordAmp_.setButtonText("Also record amped sound");
   recordAmp_.setToggleState(true, juce::dontSendNotification);
   recordAmp_.setColour(juce::ToggleButton::textColourId, theme::kWhite);
   recordAmp_.setColour(juce::ToggleButton::tickColourId, theme::kWhite);
@@ -149,8 +158,19 @@ void RecorderView::command(const juce::String& cmd, const juce::var& arg) {
   apply(services_.backend.recorderCommand(cmd, arg));
 }
 
-void RecorderView::shareFile(const juce::File& file) {
-  if (!file.existsAsFile()) return;
+void RecorderView::shareFile(const juce::File& wav) {
+  if (!wav.existsAsFile()) return;
+  juce::File file = wav;
+  if (mp3_.getToggleState()) {
+    // Encodes next to the WAV (reused when up to date); a few seconds at most
+    // for a typical take.
+    const juce::var state = services_.backend.recorderCommand("mp3", wav.getFullPathName());
+    apply(state);
+    const juce::String path = state.getProperty("mp3Path", {}).toString();
+    if (path.isEmpty()) return;  // the status line shows the error
+    file = juce::File(path);
+    if (!file.existsAsFile()) return;
+  }
 #if JUCE_IOS
   juce::Array<juce::URL> urls;
   urls.add(juce::URL(file));
@@ -186,7 +206,7 @@ void RecorderView::apply(const juce::var& state) {
     if (dropped > 0) text += "   (audio dropped: disk too slow)";
     colour = theme::kBrandRed;
   } else if (exporting) {
-    text = "Exporting through the amp...  " + mmss(position) + " / " + mmss(length);
+    text = "Exporting...  " + mmss(position) + " / " + mmss(length);
   } else if (playing) {
     text = "Playing through the amp";
   } else if (message.isNotEmpty()) {
@@ -323,7 +343,11 @@ void RecorderView::resized() {
   left.removeFromTop(kGap);
   delete_.setBounds(left.removeFromTop(36));
   left.removeFromTop(kGap);
-  recordAmp_.setBounds(left.removeFromTop(28));
+  {
+    auto toggles = left.removeFromTop(28);
+    mp3_.setBounds(toggles.removeFromRight(130));
+    recordAmp_.setBounds(toggles);
+  }
   left.removeFromTop(kGap);
   shareTitle_.setBounds(left.removeFromTop(16));
   left.removeFromTop(4);

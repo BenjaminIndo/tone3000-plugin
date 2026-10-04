@@ -885,6 +885,7 @@ void TONE3000Processor::prepareToPlay(double sampleRate, int samplesPerBlock) {
 
   tuner.prepare(sampleRate);
   takeRecorder.prepare(sampleRate);
+  fastExportScratch.setSize(2, juce::jmax(1, samplesPerBlock), false, true, false);
 
   // CPU readout: proportion of the callback budget spent in processBlock.
   loadMeasurer.reset(sampleRate, samplesPerBlock);
@@ -1791,6 +1792,29 @@ void TONE3000Processor::processImageStage(float* chL, float* chR, int numFrames,
 // RT PROCESS BLOCK
 // ################
 void TONE3000Processor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi) {
+  // Take export renders faster than real time: while it runs, the take goes
+  // through the whole rig several times per device callback (as many as fit in
+  // ~60% of the callback budget, from the measured single-pass load) and the
+  // device itself gets silence. Everything else is the normal path.
+  const int fastSamples = buffer.getNumSamples();
+  const int fastChannels = juce::jmin(2, buffer.getNumChannels());
+  if (takeRecorder.fastExportActive() && fastSamples > 0 && fastChannels > 0 &&
+      fastSamples <= fastExportScratch.getNumSamples()) {
+    const double load = loadMeasurer.getLoadAsProportion();
+    const int repeats = juce::jlimit(1, 8, static_cast<int>(0.6 / juce::jmax(0.02, load)));
+    for (int pass = 0; pass < repeats && takeRecorder.fastExportActive(); ++pass) {
+      juce::AudioBuffer<float> work(fastExportScratch.getArrayOfWritePointers(), fastChannels, fastSamples);
+      work.clear();
+      juce::MidiBuffer noMidi;
+      processBlockInternal(work, noMidi);
+    }
+    buffer.clear();
+    return;
+  }
+  processBlockInternal(buffer, midi);
+}
+
+void TONE3000Processor::processBlockInternal(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi) {
   juce::ScopedNoDenormals noDenormals;
   // Times this whole callback against its real-time budget (the CPU readout).
   juce::AudioProcessLoadMeasurer::ScopedTimer loadTimer(loadMeasurer, buffer.getNumSamples());

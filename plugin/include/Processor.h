@@ -1282,6 +1282,10 @@ private:
 
   // Records the clean input, plays takes back through the rig, bounces to WAV.
   t3k::TakeRecorder takeRecorder;
+  // The real processing; processBlock wraps it so a take export can run the
+  // rig several times per device callback (see TakeRecorder::fastExportActive).
+  void processBlockInternal(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi);
+  juce::AudioBuffer<float> fastExportScratch;
 
   // Pedalboard: compressor before the chain, delay and reverb after it.
   t3k::PedalCompressor pedalComp;

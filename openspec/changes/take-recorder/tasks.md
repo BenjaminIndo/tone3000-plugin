@@ -19,3 +19,8 @@
 ## 4. Compartir como WAV
 
 - [ ] 4.1 Botones "Clean", "Amped" y "Export" que abren la hoja de compartir de iOS con el WAV; al terminar una exportación se abre sola; verificar en el iPad que se puede enviar a Archivos o a GarageBand
+
+## 5. MP3 y exportación rápida
+
+- [ ] 5.1 Vendorizar shine (LGPL-2.0) y añadir el conmutador "Share as MP3"; verificar que el CI compila y que en el iPad el MP3 se abre en otra app
+- [ ] 5.2 Exportación rápida (varias pasadas por callback según la carga) y cola adaptativa; verificar en el iPad que una toma de 30 s se exporta en menos de 30 s y que el WAV queda igual de bien

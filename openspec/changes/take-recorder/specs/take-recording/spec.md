@@ -58,3 +58,18 @@ La app SHALL permitir compartir la toma limpia, la toma con amp o la última exp
 #### Scenario: Compartir una toma existente
 - **WHEN** el usuario elige una toma y pulsa "Clean" o "Amped"
 - **THEN** se abre la hoja de compartir con ese archivo
+
+### Requirement: Compartir como MP3
+La app SHALL permitir compartir cualquier toma o exportación como MP3 (192 kbps) además de WAV, convirtiéndola al momento y guardando el MP3 junto al WAV.
+
+#### Scenario: Compartir como MP3
+- **WHEN** el usuario activa "Share as MP3" y pulsa un botón de compartir
+- **THEN** se genera el MP3 si no existe o está desactualizado y se abre la hoja de compartir con él
+
+### Requirement: Exportación rápida
+La exportación con amp SHALL procesar la toma más rápido que el tiempo real cuando el dispositivo lo permite, sin sonido por la salida mientras dura, y SHALL terminar la cola en cuanto el sonido se apague (con un máximo de 3 segundos).
+
+#### Scenario: Toma de 30 segundos sin efectos de cola
+- **WHEN** se exporta una toma de 30 segundos con un modelo estándar
+- **THEN** la exportación dura menos que la toma y el archivo no incluye silencio sobrante largo al final
+

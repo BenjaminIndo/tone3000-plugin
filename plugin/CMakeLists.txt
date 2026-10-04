@@ -352,6 +352,18 @@ target_sources(${PROJECT_NAME}
         src/TunerDetector.cpp
         include/PitchShift.h
         src/PitchShift.cpp
+        # MP3 export (shine, LGPL-2.0): plain C, found by relative include
+        # from include/Mp3Encoder.h, so its generic header names (types.h,
+        # tables.h) never join the include path.
+        third_party/shine/bitstream.c
+        third_party/shine/huffman.c
+        third_party/shine/l3bitstream.c
+        third_party/shine/l3loop.c
+        third_party/shine/l3mdct.c
+        third_party/shine/l3subband.c
+        third_party/shine/layer3.c
+        third_party/shine/reservoir.c
+        third_party/shine/tables.c
 )
 
 # Include GUI for Desktop builds
