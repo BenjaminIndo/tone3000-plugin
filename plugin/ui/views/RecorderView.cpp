@@ -174,7 +174,8 @@ void RecorderView::shareFile(const juce::File& wav) {
 #if JUCE_IOS
   juce::Array<juce::URL> urls;
   urls.add(juce::URL(file));
-  juce::ContentSharer::getInstance()->shareFiles(urls, [](bool, const juce::String&) {});
+  // JUCE 9: the share sheet lives as long as this handle does.
+  shareBox_ = juce::ContentSharer::shareFilesScoped(urls, [](bool, const juce::String&) {}, this);
 #else
   file.revealToUser();
 #endif

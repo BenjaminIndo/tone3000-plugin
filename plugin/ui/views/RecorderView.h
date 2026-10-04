@@ -54,6 +54,7 @@ private:
   juce::ListBox list_;
   juce::Slider position_;
 
+  juce::ScopedMessageBox shareBox_;
   std::vector<Row> rows_;
   juce::String selectedId_, folderPath_, lastExport_;
   bool selectedHasAmp_ = false;
