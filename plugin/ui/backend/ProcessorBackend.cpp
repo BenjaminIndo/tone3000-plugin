@@ -225,6 +225,10 @@ bool ProcessorBackend::setMidiCcMapping(const juce::String& targetId, int cc) {
 juce::var ProcessorBackend::getMeterLevels() { return processor_.getMeterLevels(); }
 void ProcessorBackend::setTunerEnabled(bool enabled) { processor_.setTunerEnabled(enabled); }
 juce::var ProcessorBackend::getTunerReading() { return processor_.getTunerReading(); }
+juce::var ProcessorBackend::getRecorderState() { return processor_.getTakeRecorder().getState(); }
+juce::var ProcessorBackend::recorderCommand(const juce::String& command, const juce::var& arg) {
+  return processor_.getTakeRecorder().handleCommand(command, arg);
+}
 void ProcessorBackend::startAutoBalance() { processor_.startAutoBalance(); }
 void ProcessorBackend::cancelAutoBalance() { processor_.cancelAutoBalance(); }
 juce::var ProcessorBackend::pollAutoBalance() { return processor_.pollAutoBalance(); }

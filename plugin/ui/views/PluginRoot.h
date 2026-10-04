@@ -38,6 +38,7 @@
 #include "HintBar.h"
 #include "MainScreen.h"
 #include "PluginHeader.h"
+#include "RecorderView.h"
 #include "SignInScreen.h"
 #include "ToastView.h"
 #include "TunerView.h"
@@ -78,6 +79,9 @@ public:
   // detector runs only while it is up.
   void setTunerShown(bool shown);
   bool tunerShown() const { return tuner_ != nullptr; }
+  // The recordings takeover shares the tuner's slot (the two exclude each other).
+  void setRecorderShown(bool shown);
+  bool recorderShown() const { return recorder_ != nullptr; }
   // The tone browser takeover covers everything under the header (meters,
   // chain and faceplate); mounted only while open. A tuner opened over it
   // hides it until the tuner closes.
@@ -139,6 +143,7 @@ private:
   std::unique_ptr<ToneBrowser> browser_;
   std::unique_ptr<SignInScreen> signIn_;
   std::unique_ptr<TunerView> tuner_;
+  std::unique_ptr<RecorderView> recorder_;
   std::unique_ptr<SettingsScreen> settings_;
   Faceplate faceplate_;
   AppBanner banner_;

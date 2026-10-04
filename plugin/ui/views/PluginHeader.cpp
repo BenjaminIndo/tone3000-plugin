@@ -15,6 +15,9 @@ constexpr int kPadX = 24;
 constexpr int kGroupGap = 40;  // between header items
 constexpr int kPairGap = 16;   // tight pairs (undo/redo)
 constexpr int kLogoWidth = 160;
+// Record glyph (ring with a centre dot), authored white like the Lucide set.
+constexpr const char* kRecordIcon =
+    R"svg(<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="#ffffff"/></svg>)svg";
 constexpr int kLogoHeight = 24;  // 160 * 32 / 210, rounded like the browser
 }  // namespace
 
@@ -35,7 +38,8 @@ PluginHeader::PluginHeader(Services& services)
     : services_(services),
       logo_(std::make_unique<LogoLink>()),
       presetBar_(services),
-      tuner_(custom_icons::kTuningFork, 28, 18) {
+      tuner_(custom_icons::kTuningFork, 28, 18),
+      rec_(kRecordIcon, 28, 18) {
   addAndMakeVisible(*logo_);
   addAndMakeVisible(presetBar_);
 
@@ -50,6 +54,12 @@ PluginHeader::PluginHeader(Services& services)
     if (onToggleTuner) onToggleTuner(!tunerShown_);
   };
   addAndMakeVisible(tuner_);
+
+  rec_.setHelpText("Recordings: record your guitar clean, replay it through any amp, export it");
+  rec_.onClick = [this] {
+    if (onToggleRecorder) onToggleRecorder(!recorderShown_);
+  };
+  addAndMakeVisible(rec_);
 
   undo_.setHelpText(help::text(help::Key::undo));
   undo_.onClick = [this] {
@@ -103,6 +113,12 @@ void PluginHeader::setTunerShown(bool shown) {
   tuner_.setFillWhenActive(shown);
 }
 
+void PluginHeader::setRecorderShown(bool shown) {
+  recorderShown_ = shown;
+  rec_.setActive(true);
+  rec_.setFillWhenActive(shown);
+}
+
 void PluginHeader::chainChanged(const ChainState& state) {
   undo_.setEnabled(state.canUndo);
   redo_.setEnabled(state.canRedo);
@@ -134,7 +150,8 @@ void PluginHeader::resized() {
   int x = place(account_, area.getRight()) - kGroupGap;
   x = place(redo_, x) - kPairGap;
   x = place(undo_, x) - kGroupGap;
-  x = place(tuner_, x) - kGroupGap;
+  x = place(tuner_, x) - kPairGap;
+  x = place(rec_, x) - kGroupGap;
   x = place(stereo_, x) - kGroupGap;
   place(presetBar_, x);
 }

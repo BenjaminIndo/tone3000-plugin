@@ -95,6 +95,8 @@ public:
   juce::var getMeterLevels() override;
   void setTunerEnabled(bool enabled) override;
   juce::var getTunerReading() override;
+  juce::var getRecorderState() override;
+  juce::var recorderCommand(const juce::String& command, const juce::var& arg) override;
   void startAutoBalance() override;
   void cancelAutoBalance() override;
   juce::var pollAutoBalance() override;

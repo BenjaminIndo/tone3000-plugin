@@ -826,6 +826,7 @@ void TONE3000Processor::prepareToPlay(double sampleRate, int samplesPerBlock) {
   maxBlockSize = samplesPerBlock;
 
   tuner.prepare(sampleRate);
+  takeRecorder.prepare(sampleRate);
 
   // CPU readout: proportion of the callback budget spent in processBlock.
   loadMeasurer.reset(sampleRate, samplesPerBlock);
@@ -1794,6 +1795,10 @@ void TONE3000Processor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mid
     }
   }
 
+  // Take recorder: captures the clean input, or swaps it for the playing take
+  // (reamp). After the fold, before gain, so everything downstream sees it.
+  takeRecorder.processInput(buffer);
+
   // #########################
   // Input gain + noise gate
   // #########################
@@ -2059,6 +2064,9 @@ void TONE3000Processor::processBlock(juce::AudioBuffer<float>& buffer, juce::Mid
     outputMeterLevelL.store(peakToDb(peakL));
     outputMeterLevelR.store(peakToDb(peakR));
   }
+
+  // Final output, for the amp take / bounce.
+  takeRecorder.processOutput(buffer);
 }
 
 // ##################

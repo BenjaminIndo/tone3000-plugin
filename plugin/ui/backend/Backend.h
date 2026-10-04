@@ -120,6 +120,12 @@ public:
   virtual juce::var getMeterLevels() = 0;
   virtual void setTunerEnabled(bool enabled) = 0;
   virtual juce::var getTunerReading() = 0;
+  // Take recorder / reamp. State is a JSON-like var (see TakeRecorder::getState);
+  // commands: record, stop, select, play, loop, recordAmp, seek, export,
+  // delete, refresh. Defaults let backends without a recorder (the testbed's
+  // mock) ignore it.
+  virtual juce::var getRecorderState() { return {}; }
+  virtual juce::var recorderCommand(const juce::String& /*command*/, const juce::var& /*arg*/) { return {}; }
   virtual void startAutoBalance() = 0;
   virtual void cancelAutoBalance() = 0;
   virtual juce::var pollAutoBalance() = 0;

@@ -29,6 +29,7 @@
 #include "StereoOffset.h"
 #include "PresetManager.h"
 #include "TunerDetector.h"
+#include "TakeRecorder.h"
 
 class TONE3000Processor;
 
@@ -479,6 +480,9 @@ public:
   // (pre-gain, pre-gate) input so gating never starves the pitch detector.
   void setTunerEnabled(bool enabled) { tuner.setEnabled(enabled); }
   juce::var getTunerReading() { return tuner.getReading(); }
+
+  // Take recorder / reamp (see TakeRecorder.h). Message thread only.
+  t3k::TakeRecorder& getTakeRecorder() { return takeRecorder; }
 
   // Auto balance: one-shot chain energy match.
   // startAutoBalance() arms a "listening" measurement: the audio thread
@@ -1258,6 +1262,9 @@ private:
 
   // Tuner pitch detection (fed from processBlock when enabled)
   TunerDetector tuner;
+
+  // Records the clean input, plays takes back through the rig, bounces to WAV.
+  t3k::TakeRecorder takeRecorder;
 
   // Auto balance measurement state.
   // Lock-free audio↔message thread handshake. The audio thread only touches

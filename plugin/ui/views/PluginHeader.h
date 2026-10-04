@@ -22,8 +22,10 @@ public:
   PresetBar& presetBar() { return presetBar_; }
 
   void setTunerShown(bool shown);
+  void setRecorderShown(bool shown);
 
   std::function<void(bool show)> onToggleTuner;
+  std::function<void(bool show)> onToggleRecorder;
   std::function<void(bool stereo)> onStereoToggle;
   std::function<void()> onUndo, onRedo, onOpenSettings, onLogin, onLogout;
 
@@ -44,10 +46,12 @@ private:
   PresetBar presetBar_;
   StereoModeToggle stereo_;
   IconButton tuner_;
+  IconButton rec_;
   IconButton undo_{Icon::Undo2, 28};
   IconButton redo_{Icon::Redo2, 28};
   AccountMenu account_;
   bool tunerShown_ = false;
+  bool recorderShown_ = false;
 };
 
 }  // namespace t3k::ui
