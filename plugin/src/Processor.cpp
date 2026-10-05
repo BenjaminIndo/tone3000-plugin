@@ -1883,6 +1883,7 @@ void TONE3000Processor::processBlockInternal(juce::AudioBuffer<float>& buffer, j
 
   // Take recorder: captures the clean input, or swaps it for the playing take
   // (reamp). After the fold, before gain, so everything downstream sees it.
+  multitrack.beginBlock(numSamples);
   takeRecorder.processInput(buffer);
 
   // #########################

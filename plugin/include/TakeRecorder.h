@@ -57,9 +57,15 @@ public:
     if (n <= 0 || nch <= 0) return;
 
     if (recording.load()) {
-      const float* ch0 = buffer.getReadPointer(0);
-      dryWriter.push(&ch0, 1, n);
-      recordedFrames.fetch_add(n);
+      // Only the part of the block inside the capture window is written (the
+      // multitrack opens it at the end of a count-in or a punch-in mark).
+      const int from = juce::jlimit(0, n, windowFrom.load());
+      const int to = juce::jlimit(from, n, windowTo.load());
+      if (to > from) {
+        const float* ch0 = buffer.getReadPointer(0) + from;
+        dryWriter.push(&ch0, 1, to - from);
+        recordedFrames.fetch_add(to - from);
+      }
       return;
     }
 
@@ -117,8 +123,16 @@ public:
     const int n = buffer.getNumSamples();
     const int nch = buffer.getNumChannels();
     if (n <= 0 || nch <= 0) return;
+    int from = 0, to = n;
+    if (recording.load()) {
+      from = juce::jlimit(0, n, windowFrom.load());
+      to = juce::jlimit(from, n, windowTo.load());
+    }
     const float* chans[2] = {buffer.getReadPointer(0), buffer.getReadPointer(nch > 1 ? 1 : 0)};
-    wetWriter.push(chans, 2, n);
+    if (to > from) {
+      const float* part[2] = {chans[0] + from, chans[1] + from};
+      wetWriter.push(part, 2, to - from);
+    }
 
     // Export tail: stop early once the rig has gone quiet.
     if (exporting.load() && exportStarted.load() && !playing.load()) {
@@ -138,6 +152,14 @@ public:
         exportDone.store(true);
       }
     }
+  }
+
+  // Capture window for the current block, in frames: while recording, only
+  // [from, to) of each block is written. Full range (the default) records
+  // everything. Set once per block by Multitrack::beginBlock.
+  void setBlockWindow(int from, int to) noexcept {
+    windowFrom.store(from);
+    windowTo.store(to);
   }
 
   // True while an export is rendering: the processor then runs the rig several
@@ -627,6 +649,7 @@ private:
   std::atomic<bool> recording{false}, playing{false}, loop{false};
   std::atomic<bool> exporting{false}, exportStarted{false}, exportDone{false}, captureWet{false};
   std::atomic<juce::int64> playPos{0}, tailLeft{0}, recordedFrames{0}, tailElapsed{0}, quietFrames{0};
+  std::atomic<int> windowFrom{0}, windowTo{2147483647};
   std::atomic<const Take*> current{nullptr};
 
   WavWriter dryWriter, wetWriter;

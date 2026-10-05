@@ -400,6 +400,8 @@ if (NOT HEADLESS)
         # AVAudioSession route query + the Bluetooth HFP opt-out (see
         # IosAudioRoute.h).
         target_sources(${PROJECT_NAME} PRIVATE src/IosAudioRoute.mm)
+        # Native share sheet for recordings and mixes (see IosShare.h).
+        target_sources(${PROJECT_NAME} PRIVATE include/IosShare.h src/IosShare.mm)
     else()
         # Space passthrough to the host DAW (see WindowKeyEvents.cpp).
         target_sources(${PROJECT_NAME} PRIVATE src/WindowKeyEvents.cpp)
@@ -509,13 +511,6 @@ target_compile_definitions(${PROJECT_NAME}
         JUCE_USE_WEBP=0
         JUCE_VST3_CAN_REPLACE_VST2=0
 )
-
-# iOS share sheet (take / mix export): JUCE 9 compiles ContentSharer's iOS
-# implementation only with JUCE_CONTENT_SHARING=1; without it shareFilesScoped
-# silently does nothing.
-if (IOS OR CMAKE_SYSTEM_NAME STREQUAL "iOS")
-    target_compile_definitions(${PROJECT_NAME} PUBLIC JUCE_CONTENT_SHARING=1)
-endif()
 
 # Native networking (juce::URL / WebInputStream), used for model downloads
 # (ProcessorModelLoader). macOS/Windows use the OS HTTP stacks and ignore

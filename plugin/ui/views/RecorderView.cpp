@@ -1,5 +1,6 @@
 #include "RecorderView.h"
 
+#include "IosShare.h"
 #include "core/Fonts.h"
 #include "core/Theme.h"
 
@@ -177,14 +178,7 @@ void RecorderView::shareFile(const juce::File& wav) {
     file = juce::File(path);
     if (!file.existsAsFile()) return;
   }
-#if JUCE_IOS
-  juce::Array<juce::URL> urls;
-  urls.add(juce::URL(file));
-  // JUCE 9: the share sheet lives as long as this handle does.
-  shareBox_ = juce::ContentSharer::shareFilesScoped(urls, [](bool, const juce::String&) {}, this);
-#else
-  file.revealToUser();
-#endif
+  IosShare::shareFile(file);
 }
 
 void RecorderView::timerCallback() { apply(services_.backend.getRecorderState()); }
