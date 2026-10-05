@@ -52,6 +52,7 @@ public:
       readOffset[t].store(0);
       validLo[t].store(0);
       validHi[t].store(0);
+      meter[t].store(0.0f);
     }
   }
 
@@ -92,10 +93,19 @@ public:
   // End of processBlock, after the take recorder's output tap: adds the
   // playing tracks and the click to the output and advances the transport.
   void processOutputMix(juce::AudioBuffer<float>& buffer) noexcept {
-    if (!playing.load()) return;
     const int n = buffer.getNumSamples();
     const int nch = buffer.getNumChannels();
     if (n <= 0 || nch <= 0) return;
+
+    // Level of the live rig output (the guitar as it is heard), for the meter
+    // of the selected track. Measured before any track is added.
+    {
+      float peak = 0.0f;
+      for (int c = 0; c < nch; ++c)
+        peak = std::max(peak, buffer.getMagnitude(c, 0, n));
+      if (peak > liveMeter.load()) liveMeter.store(peak);
+    }
+    if (!playing.load()) return;
 
     const int recT = recordingTrack.load();
     const bool isRecording = recT >= 0;
@@ -191,6 +201,33 @@ public:
     } else if (trackOk && (cmd == "volume" || cmd == "mute" || cmd == "solo" || cmd == "nudge" || cmd == "pan" ||
                            cmd == "start" || cmd == "trimStart" || cmd == "trimEnd")) {
       editTrack(track, cmd, num, flag);
+    } else if (cmd == "region" && trackOk && value.isObject()) {
+      // One edit from a drag on the timeline: start, trim in and trim out at once.
+      auto& tr = tracks[static_cast<size_t>(track)];
+      tr.startSec = juce::jmax(0.0, static_cast<double>(value.getProperty("start", tr.startSec)));
+      tr.trimStartSec = juce::jmax(0.0, static_cast<double>(value.getProperty("trimStart", tr.trimStartSec)));
+      tr.trimEndSec = juce::jmax(0.0, static_cast<double>(value.getProperty("trimEnd", tr.trimEndSec)));
+      applyMixerState();
+      saveProject();
+    } else if ((cmd == "loopRange" || cmd == "punchRange") && value.isObject()) {
+      // A band dragged on the ruler: { in, out, on } in seconds.
+      if (recordingTrack.load() < 0) {
+        const juce::int64 a = std::max<juce::int64>(0, toFrames(static_cast<double>(value.getProperty("in", 0.0))));
+        const juce::int64 b = std::max<juce::int64>(0, toFrames(static_cast<double>(value.getProperty("out", 0.0))));
+        if (b > a) {
+          const bool on = static_cast<bool>(value.getProperty("on", true));
+          if (cmd == "loopRange") {
+            loopStart.store(a);
+            loopEnd.store(b);
+            loopOn.store(on);
+          } else {
+            punchIn.store(a);
+            punchOut.store(b);
+            punchOn.store(on);
+          }
+          saveProject();
+        }
+      }
     } else if (cmd == "clear" && trackOk) {
       clearTrack(track);
     } else if (cmd == "import" && trackOk) {
@@ -232,6 +269,7 @@ public:
     o->setProperty("mixPath", lastMix);
     o->setProperty("mixSerial", mixSerial);
     o->setProperty("latencyMs", defaultNudgeMs());
+    o->setProperty("liveMeter", liveMeter.exchange(0.0f));
     juce::Array<juce::var> list;
     for (int t = 0; t < kTracks; ++t) {
       const auto& tr = tracks[static_cast<size_t>(t)];
@@ -249,6 +287,12 @@ public:
       e->setProperty("trimStart", tr.trimStartSec);
       e->setProperty("trimEnd", tr.trimEndSec);
       e->setProperty("rev", tr.rev);
+      e->setProperty("meter", meter[t].exchange(0.0f));
+      // Display name: the imported file's name, or a generic one for takes.
+      e->setProperty("label", tr.source.isEmpty()               ? juce::String()
+                              : tr.source.startsWith("Imports/") ? tr.source.fromLastOccurrenceOf("/", false, false)
+                                                                      .upToLastOccurrenceOf(".", false, false)
+                                                                 : juce::String("Guitar"));
       // Where the visible clip sits on the timeline, in seconds.
       const juce::int64 off = readOffset[t].load();
       e->setProperty("clipStart", l != nullptr ? toSeconds(validLo[t].load() - off) : 0.0);
@@ -328,6 +372,7 @@ private:
       const float* l = track->audio.getReadPointer(0);
       const float* r = track->audio.getReadPointer(1);
       const bool replacing = (t == recT);
+      float peak = 0.0f;
       for (int i = 0; i < count; ++i) {
         const juce::int64 q = q0 + i;
         if (q < 0) continue;
@@ -338,6 +383,7 @@ private:
         if (fi < lo || fi >= hi) continue;
         const float a = l[fi] * gl;
         const float b = r[fi] * gr;
+        peak = std::max(peak, std::max(std::abs(a), std::abs(b)));
         if (outR != nullptr) {
           outL[outOffset + i] += a;
           outR[outOffset + i] += b;
@@ -345,6 +391,7 @@ private:
           outL[outOffset + i] += 0.5f * (a + b);
         }
       }
+      if (peak > meter[t].load()) meter[t].store(peak);
     }
   }
 
@@ -892,6 +939,8 @@ private:
   std::atomic<juce::int64> readOffset[kTracks];
   std::atomic<juce::int64> validLo[kTracks];
   std::atomic<juce::int64> validHi[kTracks];
+  std::atomic<float> meter[kTracks];  // peak since the last getState
+  std::atomic<float> liveMeter{0.0f};
   std::atomic<bool> playing{false}, loopOn{false}, punchOn{false}, metroOn{false};
   std::atomic<juce::int64> pos{0}, length{0}, loopStart{0}, loopEnd{0}, punchIn{0}, punchOut{0};
   std::atomic<int> recordingTrack{-1}, beatsPerBar{4}, beatDenom{4}, countInBars{0};

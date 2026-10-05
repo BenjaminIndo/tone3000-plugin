@@ -501,6 +501,8 @@ void PluginRoot::closeSettings() {
 void PluginRoot::resized() {
   overlay_.setBounds(getLocalBounds());
   if (settings_ != nullptr) settings_->setBounds(getLocalBounds());
+  // The studio is a full-window takeover (its own control bar replaces the header).
+  if (multitrack_ != nullptr) multitrack_->setBounds(getLocalBounds());
   for (auto* modal : {static_cast<ModalLayer*>(updateNotice_.get()), static_cast<ModalLayer*>(connectionModal_.get())})
     if (modal != nullptr) modal->setBounds(getLocalBounds());
 
@@ -520,7 +522,6 @@ void PluginRoot::resized() {
   if (tuner_) tuner_->setBounds(column);
   if (recorder_) recorder_->setBounds(column);
   if (pedals_) pedals_->setBounds(column);
-  if (multitrack_) multitrack_->setBounds(column);
 
   // The toast floats above the faceplate, measured from the overlay's bottom.
   const int belowColumn = getHeight() - (slotH + design::kHeight + hintH);
